@@ -18,19 +18,20 @@ import org.openjdk.jmh.annotations.Warmup;
 
 public class GraalJsWithJavaInteractionAndNoOptimizations {
 
-    static final String script_name = "/loop_for_500_with_java_interactions.mjs";
+    static final String script_name = "/find_prime_numbers_till_N.mjs";
     static volatile String jsSourceString = "";
 
     static public class SomeJavaService {
         final int incrementBy = 1;
-        public int someFunction(int i) {
-            return i+incrementBy;
+
+        public int incrementBy1(int i) {
+            return i + incrementBy;
         }
     }
 
     static SomeJavaService javaCxtObj = new SomeJavaService();
     static {
-        try (InputStream is = GraalJsWithNoOptimizations.class.getResourceAsStream(script_name)) {
+        try (InputStream is = GraalJsWithJavaInteractionAndNoOptimizations.class.getResourceAsStream(script_name)) {
             jsSourceString = new String(is.readAllBytes());
         } catch (IOException e) {
         }
@@ -45,6 +46,8 @@ public class GraalJsWithJavaInteractionAndNoOptimizations {
             context.initialize("js");
             Value bindings = context.getBindings("js");
             bindings.putMember("javaCxtObj", javaCxtObj);
+            bindings.putMember("input", 1000);
+            bindings.putMember("expected", 997);
             context.eval(
                     Source.newBuilder("js", jsSourceString, script_name).build());
         }

@@ -19,12 +19,13 @@ import org.openjdk.jmh.annotations.Warmup;
 
 public class GraalJsWithJavaInteractionEngineAndSourceReuse {
 
-    static final String script_name = "/loop_for_500_with_java_interactions.mjs";
+    static final String script_name = "/find_prime_numbers_till_N.mjs";
 
     static public class SomeJavaService {
         final int incrementBy = 1;
-        public int someFunction(int i) {
-            return i+incrementBy;
+
+        public int incrementBy1(int i) {
+            return i + incrementBy;
         }
     }
 
@@ -33,7 +34,7 @@ public class GraalJsWithJavaInteractionEngineAndSourceReuse {
     static volatile Source jsSource = null;
     static {
         String jsSourceString = null;
-        try (InputStream is = GraalJsWithNoOptimizations.class.getResourceAsStream(script_name)) {
+        try (InputStream is = GraalJsWithJavaInteractionEngineAndSourceReuse.class.getResourceAsStream(script_name)) {
             jsSourceString = new String(is.readAllBytes());
         } catch (IOException e) {
         }
@@ -49,12 +50,14 @@ public class GraalJsWithJavaInteractionEngineAndSourceReuse {
 
     private void implementation() {
         try (Context context = Context
-            .newBuilder()
-            .engine(engine)
-            .allowExperimentalOptions(true)
-            .allowAllAccess(true).build()) {
+                .newBuilder()
+                .engine(engine)
+                .allowExperimentalOptions(true)
+                .allowAllAccess(true).build()) {
             Value bindings = context.getBindings("js");
             bindings.putMember("javaCxtObj", javaCxtObj);
+            bindings.putMember("input", 1000);
+            bindings.putMember("expected", 997);
             context.eval(jsSource);
         }
     }
