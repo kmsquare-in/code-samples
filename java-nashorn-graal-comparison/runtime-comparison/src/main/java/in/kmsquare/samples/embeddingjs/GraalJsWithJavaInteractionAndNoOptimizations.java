@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
 import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Source;
+import org.graalvm.polyglot.Value;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -16,34 +16,37 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
-public class GraalJsWithEngineAndSourceReuse {
+public class GraalJsWithJavaInteractionAndNoOptimizations {
 
-    static final String script_name = "/loop_for_500.mjs";
-    static volatile Engine engine = null;
-    static volatile Source jsSource = null;
+    static final String script_name = "/loop_for_500_with_java_interactions.mjs";
+    static volatile String jsSourceString = "";
+
+    static public class SomeJavaService {
+        final int incrementBy = 1;
+        public int someFunction(int i) {
+            return i+incrementBy;
+        }
+    }
+
+    static SomeJavaService javaCxtObj = new SomeJavaService();
     static {
-        String jsSourceString = null;
         try (InputStream is = GraalJsWithNoOptimizations.class.getResourceAsStream(script_name)) {
             jsSourceString = new String(is.readAllBytes());
         } catch (IOException e) {
         }
-        engine = Engine.newBuilder("js")
-                .option("engine.Compilation", "true")
-                .allowExperimentalOptions(true)
-                .build();
-        try {
-            jsSource = Source.newBuilder("js", jsSourceString, script_name).build();
-        } catch (IOException e) {
-        }
     }
 
-    private void implementation() {
+    private void implementation() throws IOException {
         try (Context context = Context
                 .newBuilder()
-                .engine(engine)
+                .option("engine.Compilation", "false")
                 .allowExperimentalOptions(true)
                 .allowAllAccess(true).build()) {
-            context.eval(jsSource);
+            context.initialize("js");
+            Value bindings = context.getBindings("js");
+            bindings.putMember("javaCxtObj", javaCxtObj);
+            context.eval(
+                    Source.newBuilder("js", jsSourceString, script_name).build());
         }
     }
 
@@ -54,7 +57,8 @@ public class GraalJsWithEngineAndSourceReuse {
     @Warmup(iterations = 5)
     @Measurement(iterations = 5)
     @Threads(1)
-    public void average_time() {
+    public void average_time()
+            throws InterruptedException, IOException {
         implementation();
     }
 
@@ -65,7 +69,8 @@ public class GraalJsWithEngineAndSourceReuse {
     @Warmup(iterations = 5)
     @Measurement(iterations = 5)
     @Threads(1)
-    public void single_shot_time() {
+    public void single_shot_time()
+            throws InterruptedException, IOException {
         implementation();
     }
 
@@ -76,7 +81,8 @@ public class GraalJsWithEngineAndSourceReuse {
     @Warmup(iterations = 5)
     @Measurement(iterations = 5)
     @Threads(1)
-    public void throughput() {
+    public void throughput()
+            throws InterruptedException, IOException {
         implementation();
     }
 

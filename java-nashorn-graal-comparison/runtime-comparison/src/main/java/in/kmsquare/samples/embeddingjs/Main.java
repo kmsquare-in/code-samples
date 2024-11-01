@@ -9,6 +9,8 @@ public class Main {
         Options options = new OptionsBuilder()
                 .include(GraalJsWithNoOptimizations.class.getSimpleName())
                 .include(GraalJsWithEngineAndSourceReuse.class.getSimpleName())
+                .include(GraalJsWithJavaInteractionAndNoOptimizations.class.getSimpleName())
+                .include(GraalJsWithJavaInteractionEngineAndSourceReuse.class.getSimpleName())
                 .build();
         new Runner(options).run();
     }

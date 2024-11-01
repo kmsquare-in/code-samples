@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Source;
+import org.graalvm.polyglot.Value;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -16,9 +17,18 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
-public class GraalJsWithEngineAndSourceReuse {
+public class GraalJsWithJavaInteractionEngineAndSourceReuse {
 
-    static final String script_name = "/loop_for_500.mjs";
+    static final String script_name = "/loop_for_500_with_java_interactions.mjs";
+
+    static public class SomeJavaService {
+        final int incrementBy = 1;
+        public int someFunction(int i) {
+            return i+incrementBy;
+        }
+    }
+
+    static SomeJavaService javaCxtObj = new SomeJavaService();
     static volatile Engine engine = null;
     static volatile Source jsSource = null;
     static {
@@ -39,10 +49,12 @@ public class GraalJsWithEngineAndSourceReuse {
 
     private void implementation() {
         try (Context context = Context
-                .newBuilder()
-                .engine(engine)
-                .allowExperimentalOptions(true)
-                .allowAllAccess(true).build()) {
+            .newBuilder()
+            .engine(engine)
+            .allowExperimentalOptions(true)
+            .allowAllAccess(true).build()) {
+            Value bindings = context.getBindings("js");
+            bindings.putMember("javaCxtObj", javaCxtObj);
             context.eval(jsSource);
         }
     }

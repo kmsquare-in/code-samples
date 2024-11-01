@@ -17,12 +17,24 @@ import org.openjdk.jmh.annotations.Warmup;
 
 public class GraalJsWithNoOptimizations {
 
+    static final String script_name = "/loop_for_500.mjs";
     static volatile String jsSourceString = "";
     static {
-        try (InputStream is = GraalJsWithNoOptimizations.class.getResourceAsStream("/loop_for_500.mjs")) {
+        try (InputStream is = GraalJsWithNoOptimizations.class.getResourceAsStream(script_name)) {
             jsSourceString = new String(is.readAllBytes());
-            System.out.println("JS Source Loaded into String");
         } catch (IOException e) {
+        }
+    }
+
+    private void implementation() throws IOException {
+        try (Context context = Context
+                .newBuilder()
+                .option("engine.Compilation", "false")
+                .allowExperimentalOptions(true)
+                .allowAllAccess(true).build()) {
+            context.initialize("js");
+            context.eval(
+                    Source.newBuilder("js", jsSourceString, script_name).build());
         }
     }
 
@@ -35,14 +47,31 @@ public class GraalJsWithNoOptimizations {
     @Threads(1)
     public void average_time()
             throws InterruptedException, IOException {
-        try (Context context = Context
-                .newBuilder()
-                .option("engine.Compilation", "false")
-                .allowExperimentalOptions(true)
-                .allowAllAccess(true).build()) {
-            context.eval(
-                    Source.newBuilder("js", jsSourceString, "loop_for_500.mjs").build());
-        }
+        implementation();
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @Fork(2)
+    @Warmup(iterations = 5)
+    @Measurement(iterations = 5)
+    @Threads(1)
+    public void single_shot_time()
+            throws InterruptedException, IOException {
+        implementation();
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    @Fork(2)
+    @Warmup(iterations = 5)
+    @Measurement(iterations = 5)
+    @Threads(1)
+    public void throughput()
+            throws InterruptedException, IOException {
+        implementation();
     }
 
 }
